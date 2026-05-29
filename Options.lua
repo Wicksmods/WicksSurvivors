@@ -11,7 +11,7 @@ local Options = WS.Options
 local FRIZQT = "Fonts\\FRIZQT__.TTF"
 local CINZEL = "Interface\\AddOns\\WicksSurvivors\\Fonts\\Cinzel.ttf"
 
-local PANEL_W, PANEL_H = 320, 370
+local PANEL_W, PANEL_H = 300, 300
 
 -- ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -166,37 +166,23 @@ local function Build()
     local y = 0
 
     y = y + SectionLabel(body, y, "Auto-Open")
-    local r1, h1 = BuildToggleRow(body, y - 4, "optAutoOpenFlight",
-        "On Flight Start",
-        "Open when you board a flight path.")
-    y = y - 4 - h1 - 6
-
-    local r2, h2 = BuildToggleRow(body, y, "optAutoOpenLogin",
-        "On Log-in",
-        "Open when you log in to the game.")
-    y = y - h2 - 14
+    local r1, h1 = BuildToggleRow(body, y - 4, "optAutoOpenFlight", "On Flight Start")
+    y = y - 4 - h1 - 2
+    local r2, h2 = BuildToggleRow(body, y, "optAutoOpenLogin", "On Log-in")
+    y = y - h2 - 10
 
     y = y + SectionLabel(body, y, "Auto-Close")
-    local r3, h3 = BuildToggleRow(body, y - 4, "optAutoCloseFlight",
-        "On Flight End",
-        "Close when your flight path lands.")
-    y = y - 4 - h3 - 6
-
-    local r4, h4 = BuildToggleRow(body, y, "optAutoCloseCombat",
-        "On Enter Combat",
-        "Close when combat starts.")
-    y = y - h4 - 14
+    local r3, h3 = BuildToggleRow(body, y - 4, "optAutoCloseFlight", "On Flight End")
+    y = y - 4 - h3 - 2
+    local r4, h4 = BuildToggleRow(body, y, "optAutoCloseCombat", "On Enter Combat")
+    y = y - h4 - 10
 
     y = y + SectionLabel(body, y, "Display")
-    local r5, h5 = BuildToggleRow(body, y - 4, "optSplash",
-        "Show title splash on open",
-        "Play the intro splash the first time\nyou open the panel each session.")
-    y = y - 4 - h5 - 14
+    local r5, h5 = BuildToggleRow(body, y - 4, "optSplash", "Show title splash on open")
+    y = y - 4 - h5 - 10
 
     y = y + SectionLabel(body, y, "Audio")
-    local r6, h6 = BuildToggleRow(body, y - 4, "optSound",
-        "Sound effects",
-        "Enable splash and ambient audio.")
+    local r6, h6 = BuildToggleRow(body, y - 4, "optSound", "Sound effects")
     y = y - 4 - h6
 
     optFrame.body = body
