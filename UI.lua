@@ -637,11 +637,20 @@ function UI.ToggleMenu()
     BuildMenu()
     if menuFrame:IsShown() then
         menuFrame:Hide()
-    else
+        return
+    end
+
+    local function showMenu()
         menuFrame.hs:SetText(WS.db.highScore or 0)
         menuFrame.bw:SetText(WS.db.bestWave  or 0)
         menuFrame.tr:SetText(WS.db.totalRuns or 0)
         menuFrame:Show()
+    end
+
+    if WS.Splash then
+        WS.Splash.Play(showMenu)
+    else
+        showMenu()
     end
 end
 

@@ -7,6 +7,7 @@
 
 Core.lua
 Skin.lua
+Splash.lua
 Anim.lua
 Game.lua
 UI.lua
