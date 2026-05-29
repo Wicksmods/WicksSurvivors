@@ -631,7 +631,10 @@ local function BuildMenu()
     local cLabel = MakeText(closeBtn, 13, C.text, "CENTER")
     cLabel:SetPoint("CENTER")
     cLabel:SetText("Close")
-    closeBtn:SetScript("OnClick", function() menuFrame:Hide() end)
+    closeBtn:SetScript("OnClick", function()
+        menuFrame:Hide()
+        if WS.Splash and WS.Splash.Advance then WS.Splash.Advance() end
+    end)
 
     local optBtn = CreateFrame("Button", nil, menuFrame)
     optBtn:SetSize(90, 30)
