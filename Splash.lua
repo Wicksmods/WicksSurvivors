@@ -502,8 +502,12 @@ end
 
 function Splash.Play(onComplete, force)
     Build()
-    local playOnce = (WS.db and WS.db.optSplash ~= nil) and WS.db.optSplash or CFG.PLAY_ONCE
-    if playOnce and Splash.seen and not force then
+    local showSplash = (WS.db and WS.db.optSplash ~= nil) and WS.db.optSplash or true
+    if not showSplash then
+        if onComplete then onComplete() end
+        return
+    end
+    if CFG.PLAY_ONCE and Splash.seen and not force then
         if onComplete then onComplete() end
         return
     end
