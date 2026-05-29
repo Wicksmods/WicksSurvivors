@@ -11,7 +11,7 @@ local Options = WS.Options
 local FRIZQT = "Fonts\\FRIZQT__.TTF"
 local CINZEL = "Interface\\AddOns\\WicksSurvivors\\Fonts\\Cinzel.ttf"
 
-local PANEL_W, PANEL_H = 300, 300
+local PANEL_W, PANEL_H = 300, 360
 
 -- ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -147,7 +147,7 @@ local function Build()
 
     -- section labels + rows
     local body = CreateFrame("Frame", nil, optFrame)
-    body:SetSize(PANEL_W - 40, PANEL_H - 62)
+    body:SetSize(PANEL_W - 40, PANEL_H - 72)
     body:SetPoint("TOPLEFT",  optFrame, "TOPLEFT",  20, -52)
 
     local function SectionLabel(parent, yOff, text)
