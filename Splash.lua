@@ -495,13 +495,21 @@ function Splash.Advance()
     playCue(CFG.SND_MENU)
 end
 
+function Splash.SetSound(on)
+    CFG.SOUND = on
+    if not on and PlayMusic then pcall(StopMusic) end
+end
+
 function Splash.Play(onComplete, force)
     Build()
-    if CFG.PLAY_ONCE and Splash.seen and not force then
+    local playOnce = (WS.db and WS.db.optSplash ~= nil) and WS.db.optSplash or CFG.PLAY_ONCE
+    if playOnce and Splash.seen and not force then
         if onComplete then onComplete() end
         return
     end
     Splash.seen = true
+
+    if WS.db and WS.db.optSound ~= nil then CFG.SOUND = WS.db.optSound end
 
     t, advancing, advT, struck, foilPhase = 0, false, 0, false, nil
     onDone    = onComplete

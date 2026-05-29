@@ -624,13 +624,24 @@ local function BuildMenu()
     end)
 
     local closeBtn = CreateFrame("Button", nil, menuFrame)
-    closeBtn:SetSize(110, 30)
-    closeBtn:SetPoint("BOTTOM", menuFrame, "BOTTOM", 0, 22)
-    WS.Skin.Button(closeBtn, false, 110, 30)
+    closeBtn:SetSize(90, 30)
+    closeBtn:SetPoint("BOTTOM", menuFrame, "BOTTOM", 55, 22)
+    WS.Skin.Button(closeBtn, false, 90, 30)
     local cLabel = MakeText(closeBtn, 13, C.text, "CENTER")
     cLabel:SetPoint("CENTER")
     cLabel:SetText("Close")
     closeBtn:SetScript("OnClick", function() menuFrame:Hide() end)
+
+    local optBtn = CreateFrame("Button", nil, menuFrame)
+    optBtn:SetSize(90, 30)
+    optBtn:SetPoint("BOTTOM", menuFrame, "BOTTOM", -55, 22)
+    WS.Skin.Button(optBtn, false, 90, 30)
+    local oLabel = MakeText(optBtn, 13, C.text, "CENTER")
+    oLabel:SetPoint("CENTER")
+    oLabel:SetText("Options")
+    optBtn:SetScript("OnClick", function()
+        if WS.Options then WS.Options.Toggle() end
+    end)
 end
 
 function UI.ToggleMenu()
@@ -647,10 +658,17 @@ function UI.ToggleMenu()
         menuFrame:Show()
     end
 
-    if WS.Splash then
+    local showSplash = WS.Splash and (WS.db.optSplash ~= false)
+    if showSplash then
         WS.Splash.Play(showMenu)
     else
         showMenu()
+    end
+end
+
+function UI.CloseMenu()
+    if menuFrame and menuFrame:IsShown() then
+        menuFrame:Hide()
     end
 end
 

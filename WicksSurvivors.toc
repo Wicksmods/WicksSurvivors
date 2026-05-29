@@ -11,3 +11,4 @@ Splash.lua
 Anim.lua
 Game.lua
 UI.lua
+Options.lua

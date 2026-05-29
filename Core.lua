@@ -214,14 +214,30 @@ WS.defaultDB = {
     highScore = 0,
     bestWave  = 0,
     totalRuns = 0,
+    -- options
+    optAutoOpenFlight = false,
+    optAutoOpenLogin  = false,
+    optAutoCloseFlight = false,
+    optAutoCloseCombat = false,
+    optSound          = true,
+    optSplash         = true,
 }
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGOUT")
+frame:RegisterEvent("PLAYER_CONTROL_LOST")
+frame:RegisterEvent("PLAYER_CONTROL_GAINED")
+frame:RegisterEvent("PLAYER_LOGIN")
+frame:RegisterEvent("PLAYER_REGEN_DISABLED")
+frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 frame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON then
-        WicksSurvivorsDB = WicksSurvivorsDB or CopyTable(WS.defaultDB)
+        WicksSurvivorsDB = WicksSurvivorsDB or {}
+        -- merge in any new defaults without clobbering existing values
+        for k, v in pairs(WS.defaultDB) do
+            if WicksSurvivorsDB[k] == nil then WicksSurvivorsDB[k] = v end
+        end
         WS.db = WicksSurvivorsDB
 
         SLASH_WICKSSURVIVORS1 = "/survivors"
@@ -231,5 +247,29 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 
     elseif event == "PLAYER_LOGOUT" then
         WicksSurvivorsDB = WS.db
+
+    elseif event == "PLAYER_LOGIN" then
+        if WS.db and WS.db.optAutoOpenLogin then
+            -- delay one frame so UI is ready
+            C_Timer.After(2, function() WS.UI.ToggleMenu() end)
+        end
+
+    elseif event == "PLAYER_CONTROL_LOST" then
+        if WS.db and WS.db.optAutoOpenFlight and UnitOnTaxi("player") then
+            WS.UI.ToggleMenu()
+        end
+
+    elseif event == "PLAYER_CONTROL_GAINED" then
+        if WS.db and WS.db.optAutoCloseFlight then
+            if WS.UI.CloseMenu then WS.UI.CloseMenu() end
+        end
+
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        if WS.db and WS.db.optAutoCloseCombat then
+            if WS.UI.CloseMenu then WS.UI.CloseMenu() end
+        end
+
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        -- no action on combat end by default
     end
 end)
