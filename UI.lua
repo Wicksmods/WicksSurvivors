@@ -633,7 +633,7 @@ local function BuildMenu()
     cLabel:SetText("Close")
     closeBtn:SetScript("OnClick", function()
         menuFrame:Hide()
-        if WS.Splash and WS.Splash.Advance then WS.Splash.Advance() end
+        if WS.Splash and WS.Splash.Hide then WS.Splash.Hide() end
     end)
 
     local optBtn = CreateFrame("Button", nil, menuFrame)
@@ -652,8 +652,7 @@ function UI.ToggleMenu()
     BuildMenu()
     if menuFrame:IsShown() then
         menuFrame:Hide()
-        -- also dismiss a still-playing splash
-        if WS.Splash and WS.Splash.Advance then WS.Splash.Advance() end
+        if WS.Splash and WS.Splash.Hide then WS.Splash.Hide() end
         return
     end
 
@@ -690,7 +689,7 @@ end
 function UI.CloseMenu()
     if menuFrame and menuFrame:IsShown() then
         menuFrame:Hide()
-        if WS.Splash and WS.Splash.Advance then WS.Splash.Advance() end
+        if WS.Splash and WS.Splash.Hide then WS.Splash.Hide() end
     end
 end
 
