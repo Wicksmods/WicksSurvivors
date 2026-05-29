@@ -2,7 +2,7 @@
 ## Title: Wick's Survivors
 ## Notes: Vampire Survivors-style wave survival minigame. /survivors to play.
 ## Author: Wick
-## Version: 0.1.0
+## Version: 0.2.0
 ## SavedVariables: WicksSurvivorsDB
 
 Core.lua
