@@ -670,6 +670,7 @@ function UI.ToggleMenu()
         local function onSplashDone()
             if ambienceTicker then ambienceTicker:Cancel(); ambienceTicker = nil end
             if PlayMusic then pcall(StopMusic) end
+            if WS.Splash and WS.Splash.Hide then WS.Splash.Hide() end
             showMenu()
         end
         WS.Splash.Play(onSplashDone)
