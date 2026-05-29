@@ -663,7 +663,22 @@ function UI.ToggleMenu()
 
     local showSplash = WS.Splash and (WS.db.optSplash ~= false)
     if showSplash then
-        WS.Splash.Play(showMenu)
+        -- wrap onComplete: stop ambience ticker then show menu
+        local ambienceTicker
+        local function onSplashDone()
+            if ambienceTicker then ambienceTicker:Cancel(); ambienceTicker = nil end
+            if PlayMusic then pcall(StopMusic) end
+            showMenu()
+        end
+        WS.Splash.Play(onSplashDone)
+        -- play ambience on SFX channel so it respects SFX volume, not Music volume
+        local SND_AMB = "Interface\\AddOns\\WicksSurvivors\\Sounds\\ambience.ogg"
+        if WS.db.optSound ~= false then
+            pcall(PlaySoundFile, SND_AMB, "SFX")
+            ambienceTicker = C_Timer.NewTicker(32, function()
+                if ambienceTicker then pcall(PlaySoundFile, SND_AMB, "SFX") end
+            end)
+        end
     else
         showMenu()
     end
