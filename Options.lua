@@ -60,7 +60,7 @@ local function BuildToggleRow(parent, yOff, dbKey, label, desc)
 
     local row = CreateFrame("Button", nil, parent)
     row:SetSize(PANEL_W - 40, rowH)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, yOff)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, yOff)
 
     -- checkbox box: 16×16
     local boxFrame = CreateFrame("Frame", nil, row)
@@ -147,8 +147,8 @@ local function Build()
 
     -- section labels + rows
     local body = CreateFrame("Frame", nil, optFrame)
+    body:SetSize(PANEL_W - 40, PANEL_H - 62)
     body:SetPoint("TOPLEFT",  optFrame, "TOPLEFT",  20, -52)
-    body:SetPoint("TOPRIGHT", optFrame, "TOPRIGHT", -20, -52)
 
     local function SectionLabel(parent, yOff, text)
         local fs = MakeBodyText(parent, 10, {r=C.fel.r*0.7, g=C.fel.g*0.7, b=C.fel.b*0.7}, "LEFT")
