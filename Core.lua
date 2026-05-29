@@ -239,6 +239,8 @@ frame:SetScript("OnEvent", function(self, event, arg1)
             if WicksSurvivorsDB[k] == nil then WicksSurvivorsDB[k] = v end
         end
         WS.db = WicksSurvivorsDB
+        -- force sound on — it was incorrectly saved as false by a prior bug
+        WS.db.optSound = true
 
         SLASH_WICKSSURVIVORS1 = "/survivors"
         SlashCmdList["WICKSSURVIVORS"] = function()

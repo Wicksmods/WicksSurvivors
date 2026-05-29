@@ -649,6 +649,8 @@ function UI.ToggleMenu()
     BuildMenu()
     if menuFrame:IsShown() then
         menuFrame:Hide()
+        -- also dismiss a still-playing splash
+        if WS.Splash and WS.Splash.Advance then WS.Splash.Advance() end
         return
     end
 
@@ -670,6 +672,7 @@ end
 function UI.CloseMenu()
     if menuFrame and menuFrame:IsShown() then
         menuFrame:Hide()
+        if WS.Splash and WS.Splash.Advance then WS.Splash.Advance() end
     end
 end
 
