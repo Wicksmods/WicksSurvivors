@@ -30,10 +30,13 @@ Part of the **[Wick suite](https://github.com/Wicksmods/WickSuite)**: precision 
 
 ## Features
 
-- **5 auto-firing weapons** that activate and combine as you level up.
-- **Passive upgrades** — lifesteal, speed, area, cooldown reduction, and more.
-- **Boss waves every 6 rounds** — iconic TBC encounters scaled to the minigame.
-- **Obsidian Glass skin** — a full art reskin included from day one.
+- **8 auto-firing weapons** that activate and combine as you level up — Fel Bolt, Twin Bolts, Fel Explosion, Void Tendril, Fel Aura, Soul Scythe, Meteor, and the Dreadhound pet.
+- **Stacking-rank upgrades** — every weapon and passive has a rank cap, and level-up cards show your progress with rank pips.
+- **Four biomes** — Frozen Crypt, Ember Caldera, Eldritch Deep, and Fel Wastes rotate every six waves, each with tinted reskins and biome-unique foes.
+- **Enemy archetypes** — armored bruisers, shielded casters, ranged shooters, and fast swarms.
+- **Four boss fights** — Kel'Thuzad, Nefarian, C'Thun, and Illidan, each with a signature special and an empowered second phase.
+- **Power-up pickups** — Haste, Rage, Shield, Magnet, and double-XP motes.
+- **Passive upgrades** — lifesteal, armor, damage, projectile speed, regen, pickup range, and more.
 - **Wick chrome.** Flat dark-purple panel, fel-green L-bracket corners, draggable and resizable.
 
 ## Install

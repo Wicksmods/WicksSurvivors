@@ -77,10 +77,12 @@ end
 local function animFrame(tex, key, phase, flip)
     local a = WS.ANIM and WS.ANIM[key]
     if not a then return end
-    local n = a.frames
-    local idx = math.floor(GetTime() * a.fps * (CFG.SCENE_FPS_MULT or 1) + (phase or 0) * n) % n
-    local l = idx / n
-    if flip then tex:SetTexCoord(l + 1/n, l, 0, 1) else tex:SetTexCoord(l, l + 1/n, 0, 1) end
+    local n    = a.frames
+    local frac = a.frac or (1 / n)          -- new Anim model: per-frame UV width
+    local fps  = a.fps or 8                  -- fps now lives in Anim.lua's FPS table
+    local idx  = math.floor(GetTime() * fps * (CFG.SCENE_FPS_MULT or 1) + (phase or 0) * n) % n
+    local l    = idx * frac
+    if flip then tex:SetTexCoord(l + frac, l, 0, 1) else tex:SetTexCoord(l, l + frac, 0, 1) end
 end
 
 local function playCue(cue, fallbackId)

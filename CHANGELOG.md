@@ -1,5 +1,29 @@
 # Wick's Survivors -- Changelog
 
+## 0.3.0 -- 2026-05-31
+
+Brings the addon to parity with the standalone Wick's Survivors desktop build.
+
+### Added
+
+- Biome system: four rotating zones (Frozen Crypt, Ember Caldera, Eldritch Deep, Fel Wastes), six waves each. The arena background retints per biome.
+- Biome-tinted enemy reskins and biome-unique foes: frost revenant, frostling, magma hound, cinder wisp, deep spawn, gazer, fel imp, wrathguard.
+- Enemy archetypes: armor, recharging shields, ranged shooters, and faster swarm types.
+- Four distinct boss fights with signature specials -- Kel'Thuzad (frost nova), Nefarian (shadowflame), C'Thun (eye beam), Illidan (fel dash) -- each with an empowered phase that swaps art and tightens its special timer below 40% HP.
+- New weapons: Soul Scythe (orbiting blades), Meteor (AoE strike), and Dreadhound (autonomous pet that hunts foes).
+- Fel Bolt now renders as green forking lightning (matching the desktop build), and Void Tendril upgrades make your bolts fork through nearby enemies on hit.
+- Fel Explosion fireballs (now fel-green, not arcane) split into shards on first hit.
+- Twin Bolts multishot.
+- New passives: Dark Pact (flat damage), Void Ward (armor), Soul Hunger (lifesteal), Swiftness (projectile speed).
+- New power-up pickups: Haste, Rage, Shield, Magnet, and double-XP motes.
+- Stacking-rank upgrade model: each upgrade has a rank cap, and level-up cards show rank pips.
+
+### Changed
+
+- Waves now advance when the arena is cleared (with a safety cap), matching the desktop build, instead of on a fixed timer.
+- Player is faster than the swarm again; enemy speeds rebalanced so you can always kite.
+- All sprites re-exported from the standalone art kit (74 TGAs incl. reskins and empowered bosses, plus biome floors and props). Non-power-of-two strips are padded and oversized strips downscaled to stay within the client's texture limit so animation stays crisp.
+
 ## 0.2.0 -- 2026-05-29
 
 ### Added

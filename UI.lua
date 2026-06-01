@@ -95,6 +95,16 @@ local POOL_PARENT
 local enemyPool   = {}
 local projPool    = {}
 local pickupPool  = {}
+local scythePool  = {}
+local wolfPool    = {}
+local meteorPool  = {}
+local arcPool     = {}
+local arenaBgTex          -- biome-tinted arena background (set in BuildArena)
+local arenaFloorGlow      -- biome-tinted center radial
+local arenaDots           -- list of dot-grid textures (biome-tinted)
+local biomeLayer          -- frame holding floor tiles + scattered props
+local biomeFloorTex = {}  -- pooled floor-tile textures
+local biomeProps    = {}  -- active prop tiles {tex, animKey} for flipbook
 
 local function AcquireFrame(pool, parent, size)
     local f = table.remove(pool)
@@ -427,11 +437,12 @@ end
 -- ── Projectile trails ─────────────────────────────────────────────────────────
 
 local TRAIL_COLORS = {
-    bolt      = {0.5, 0.2, 1.0},
-    nova      = {0.3, 0.7, 1.0},
-    chain     = {0.4, 0.9, 1.0},
+    bolt      = {0.42, 0.94, 0.62},                -- fel-green bolt (matches sprite)
+    nova      = {C.fel.r, C.fel.g, C.fel.b},       -- Fel Explosion = fel-green, not arcane blue
+    chain     = {0.52, 0.22, 0.88},                -- Void Tendril = void-purple
     orb       = {C.fel.r, C.fel.g, C.fel.b},
     boss_nova = {1.0, 0.2, 0.2},
+    enemy_shot= {0.7, 0.3, 0.9},
 }
 local TRAIL_INTERVAL = 0.035
 local projTrailAccum = {}  -- keyed by projectile ref
@@ -873,6 +884,10 @@ local playerAngle      = 0
 local activeEnemyFrames  = {}
 local activeProjFrames   = {}
 local activePickupFrames = {}
+local activeScytheFrames = {}
+local activeWolfFrames   = {}
+local activeMeteorFrames = {}
+local activeArcFrames    = {}
 
 local function BuildArena()
     if arenaFrame then return end
@@ -900,6 +915,7 @@ local function BuildArena()
     local bgTex = bgFrame:CreateTexture(nil, "BACKGROUND")
     bgTex:SetColorTexture(0.055, 0.043, 0.090, 1)
     bgTex:SetAllPoints(bgFrame)
+    arenaBgTex = bgTex   -- biome tinting target (see UI.OnBiome)
 
     -- small dim center lift (glow.tga radial, 60% of arena size)
     local floorGlow = bgFrame:CreateTexture(nil, "ARTWORK")
@@ -908,6 +924,7 @@ local function BuildArena()
     floorGlow:SetVertexColor(0.13, 0.10, 0.22, 0.45)
     floorGlow:SetSize(WS.ARENA_W * 0.6, WS.ARENA_H * 0.6)
     floorGlow:SetPoint("CENTER", arenaFrame, "CENTER")
+    arenaFloorGlow = floorGlow   -- biome-tinted (see UI.OnBiome)
 
     -- 1px border inset on the arena edge
     local borderTex = bgFrame:CreateTexture(nil, "BORDER")
@@ -919,12 +936,14 @@ local function BuildArena()
     local gridFrame = CreateFrame("Frame", nil, arenaFrame)
     gridFrame:SetAllPoints(arenaFrame)
     gridFrame:SetFrameLevel(arenaFrame:GetFrameLevel() + 1)
+    arenaDots = {}
     for gx = 0, math.floor(WS.ARENA_W / 34) do
         for gy = 0, math.floor(WS.ARENA_H / 34) do
             local dot = gridFrame:CreateTexture(nil, "ARTWORK")
             dot:SetColorTexture(0.471, 0.392, 0.667, 0.18)  -- rgba(120,100,170,.18) exact design
             dot:SetSize(2, 2)
             dot:SetPoint("TOPLEFT", arenaFrame, "TOPLEFT", gx * 34, -(gy * 34))
+            arenaDots[#arenaDots+1] = dot
         end
     end
 
@@ -1005,8 +1024,13 @@ end
 
 -- ── Entity rendering ──────────────────────────────────────────────────────────
 
-local PROJ_TEX  = {orb="proj_orb", bolt="proj_bolt", nova="proj_nova", chain="proj_chain", aura="proj_aura", boss_nova="proj_nova"}
-local PROJ_SIZE = {orb=26, bolt=19, nova=16, chain=22, aura=19, boss_nova=22}
+-- Fel Bolt uses the jagged lightning sprite (proj_chain) tinted green, matching
+-- the standalone where the auto-fire bolt is green forking lightning.
+local PROJ_TEX  = {orb="proj_orb", bolt="proj_chain", nova="proj_nova", chain="proj_chain", aura="proj_aura", boss_nova="proj_nova", enemy_shot="proj_bolt"}
+local PROJ_SIZE = {orb=26, bolt=22, nova=16, chain=22, aura=19, boss_nova=22, enemy_shot=16}
+-- Per-weapon sprite tint. proj_chain.tga is recolored fel-green on disk for the
+-- bolt, so the bolt needs no tint. (chain weapon draws via SpawnArc, not a sprite.)
+local PROJ_TINT = {}
 
 local function RenderEnemies(enemies, elapsed)
     while #activeEnemyFrames > #enemies do
@@ -1045,8 +1069,8 @@ local function RenderEnemies(enemies, elapsed)
 
     for i, e in ipairs(enemies) do
         local f   = activeEnemyFrames[i]
-        local sz  = e.template.size
-        local tex = WS.TEX[e.template.tex]
+        local sz  = e.size
+        local tex = WS.TEX[e.tex]
 
         -- subtle wobble scale
         f.wobble = (f.wobble or 0) + elapsed * 3
@@ -1063,13 +1087,20 @@ local function RenderEnemies(enemies, elapsed)
             f.bg:SetTexture(tex)
             f.lastTex = tex
         end
-        WS.SetAnimFrame(f.bg, e.template.tex, f.animPhase)
+        WS.SetAnimFrame(f.bg, e.tex, f.animPhase)
 
         if e.flashTimer > 0 then
             f.bg:SetVertexColor(1, 1, 1, 1)
-            local t = e.template
-            f.glow:SetVertexColor(t.deathR or 1, t.deathG or 0.5, t.deathB or 0.2, 0.7)
+            f.glow:SetVertexColor(e.deathR or 1, e.deathG or 0.5, e.deathB or 0.2, 0.7)
             f.glow:SetSize(dsz + 20, dsz + 20)
+            f.glow:SetPoint("CENTER", f, "CENTER")
+            f.glow:Show()
+        elseif e.isBoss then
+            -- bosses keep a constant aura; empowered = hotter glow
+            f.bg:SetVertexColor(1, 1, 1, 1)
+            local ga = e.empowered and 0.55 or 0.3
+            f.glow:SetVertexColor(e.deathR or 1, e.deathG or 0.5, e.deathB or 0.2, ga)
+            f.glow:SetSize(dsz + (e.empowered and 30 or 18), dsz + (e.empowered and 30 or 18))
             f.glow:SetPoint("CENTER", f, "CENTER")
             f.glow:Show()
         else
@@ -1115,7 +1146,12 @@ local function RenderProjectiles(projs)
         else
             f.bg:SetRotation(0)
         end
-        f.bg:SetVertexColor(1, 1, 1, 0.95)
+        local tint = PROJ_TINT[p.weaponId]
+        if tint then
+            f.bg:SetVertexColor(tint[1], tint[2], tint[3], 0.95)
+        else
+            f.bg:SetVertexColor(1, 1, 1, 0.95)
+        end
         WS.SetAnimFrame(f.bg, PROJ_TEX[p.weaponId] or "proj_bolt", 0)
 
         -- glow behind projectile
@@ -1153,8 +1189,10 @@ local function RenderPickups(pickups, elapsed)
 
     for i, pk in ipairs(pickups) do
         local f      = activePickupFrames[i]
-        local tex    = pk.kind == "hp" and WS.TEX.pickup_hp or WS.TEX.pickup_xp
-        local baseSz = pk.kind == "hp" and 20 or 16
+        local tex    = WS.TEX[pk.tex or "pickup_xp"]
+        -- power-ups (256px art) render a bit larger than plain xp/hp orbs
+        local big    = (pk.kind ~= "xp" and pk.kind ~= "hp")
+        local baseSz = big and 24 or (pk.kind == "hp" and 20 or 16)
         local sz     = math.floor(baseSz * pulse)
         f:SetSize(sz, sz)
         f:SetPoint("TOPLEFT", arenaFrame, "TOPLEFT", ArenaToFrame(pk.x - sz/2, pk.y - sz/2))
@@ -1163,18 +1201,298 @@ local function RenderPickups(pickups, elapsed)
             f.lastTex = tex
         end
 
-        -- pulsing glow
+        -- pulsing glow, tinted per kind
         local glowAlpha = 0.28 + math.sin(pickupPulseTime * 5) * 0.12
         f.glow:SetSize(sz + 16, sz + 16)
         f.glow:SetPoint("CENTER", f, "CENTER")
-        if pk.kind == "hp" then
-            f.bg:SetVertexColor(1, 0.55, 0.55, 1)
-            f.glow:SetVertexColor(0.9, 0.15, 0.15, glowAlpha)
+        local k = pk.kind
+        if k == "hp" then
+            f.bg:SetVertexColor(1, 0.55, 0.55, 1); f.glow:SetVertexColor(0.9, 0.15, 0.15, glowAlpha)
+        elseif k == "haste" then
+            f.bg:SetVertexColor(1, 1, 1, 1); f.glow:SetVertexColor(0.3, 0.8, 1, glowAlpha)
+        elseif k == "rage" then
+            f.bg:SetVertexColor(1, 1, 1, 1); f.glow:SetVertexColor(1, 0.4, 0.15, glowAlpha)
+        elseif k == "shield" then
+            f.bg:SetVertexColor(1, 1, 1, 1); f.glow:SetVertexColor(0.4, 0.7, 1, glowAlpha)
+        elseif k == "magnet" then
+            f.bg:SetVertexColor(1, 1, 1, 1); f.glow:SetVertexColor(0.8, 0.6, 1, glowAlpha)
+        elseif k == "xp2" then
+            f.bg:SetVertexColor(1, 1, 1, 1); f.glow:SetVertexColor(C.fel.r, C.fel.g, C.fel.b, glowAlpha + 0.1)
         else
-            f.bg:SetVertexColor(0.65, 1, 0.65, 1)
-            f.glow:SetVertexColor(C.fel.r, C.fel.g, C.fel.b, glowAlpha)
+            f.bg:SetVertexColor(0.65, 1, 0.65, 1); f.glow:SetVertexColor(C.fel.r, C.fel.g, C.fel.b, glowAlpha)
         end
     end
+end
+
+-- ── New weapon-entity rendering (scythes / dreadhounds / meteors / arcs) ───────
+
+-- Soul Scythe: orbiting blade sprites.
+local function RenderScythes(scythes, elapsed)
+    while #activeScytheFrames > #scythes do
+        local f = table.remove(activeScytheFrames); f:Hide(); scythePool[#scythePool+1] = f
+    end
+    while #activeScytheFrames < #scythes do
+        local f = scythePool[#scythePool]
+        if f then scythePool[#scythePool] = nil else
+            f = CreateFrame("Frame", nil, arenaFrame)
+            f:SetFrameLevel(arenaFrame:GetFrameLevel() + 5)
+            f.bg = f:CreateTexture(nil, "ARTWORK")
+            f.bg:SetAllPoints(f)
+            f.bg:SetTexture(WS.TEX.proj_scythe)
+            f.bg:SetVertexColor(1.1, 1.3, 1.1, 0.92)
+        end
+        f:Show()
+        activeScytheFrames[#activeScytheFrames+1] = f
+    end
+    for i, s in ipairs(scythes) do
+        local f = activeScytheFrames[i]
+        f:SetSize(36, 36)
+        f:SetPoint("TOPLEFT", arenaFrame, "TOPLEFT", ArenaToFrame((s.x or 0) - 18, (s.y or 0) - 18))
+        f.bg:SetRotation((s.angle or 0) + (s.phaseOffset or 0) + math.pi*0.5)
+    end
+end
+
+-- Dreadhound: animated 6-frame imp that runs to targets.
+local function RenderWolves(wolves, elapsed)
+    while #activeWolfFrames > #wolves do
+        local f = table.remove(activeWolfFrames); f:Hide(); wolfPool[#wolfPool+1] = f
+    end
+    while #activeWolfFrames < #wolves do
+        local f = wolfPool[#wolfPool]
+        if f then wolfPool[#wolfPool] = nil else
+            f = CreateFrame("Frame", nil, arenaFrame)
+            f:SetFrameLevel(arenaFrame:GetFrameLevel() + 4)
+            f.bg = f:CreateTexture(nil, "ARTWORK")
+            f.bg:SetAllPoints(f)
+            f.bg:SetTexture(WS.TEX.proj_dreadhound)
+            f.glow = f:CreateTexture(nil, "BACKGROUND")
+            f.glow:SetTexture("Interface\\AddOns\\WicksSurvivors\\Art\\glow")
+            f.glow:SetBlendMode("ADD")
+            f.glow:SetVertexColor(0.42, 1.0, 0.52, 0.4)
+        end
+        f:Show()
+        activeWolfFrames[#activeWolfFrames+1] = f
+    end
+    for i, w in ipairs(wolves) do
+        local f = activeWolfFrames[i]
+        f:SetSize(34, 34)
+        f:SetPoint("TOPLEFT", arenaFrame, "TOPLEFT", ArenaToFrame(w.x - 17, w.y - 17))
+        f.glow:SetSize(46, 46); f.glow:SetPoint("CENTER", f, "CENTER")
+        WS.SetAnimFrame(f.bg, "proj_dreadhound", w.animPhase or 0)
+        -- flip horizontally by mirroring tex coords when facing left
+        if (w.facing or 1) < 0 then
+            local a = WS.ANIM.proj_dreadhound
+            local n = math.floor(GetTime() * 11 + (w.animPhase or 0) * a.frames) % a.frames
+            local l = n * a.frac
+            f.bg:SetTexCoord(l + a.frac, l, 0, 1)  -- swapped U for mirror
+        end
+    end
+end
+
+-- Meteor: glowing falling streak that bursts on impact.
+local function RenderMeteors(meteors, elapsed)
+    while #activeMeteorFrames > #meteors do
+        local f = table.remove(activeMeteorFrames); f:Hide(); meteorPool[#meteorPool+1] = f
+    end
+    while #activeMeteorFrames < #meteors do
+        local f = meteorPool[#meteorPool]
+        if f then meteorPool[#meteorPool] = nil else
+            f = CreateFrame("Frame", nil, arenaFrame)
+            f:SetFrameLevel(arenaFrame:GetFrameLevel() + 8)
+            f.bg = f:CreateTexture(nil, "ARTWORK")
+            f.bg:SetAllPoints(f)
+            f.bg:SetTexture(WS.TEX.proj_meteor)
+            f.ring = f:CreateTexture(nil, "BACKGROUND")
+            f.ring:SetTexture("Interface\\AddOns\\WicksSurvivors\\Art\\glow")
+            f.ring:SetBlendMode("ADD")
+        end
+        f:Show()
+        activeMeteorFrames[#activeMeteorFrames+1] = f
+    end
+    for i, m in ipairs(meteors) do
+        local f = activeMeteorFrames[i]
+        if not m.impacted then
+            -- falling: lerp from above onto target
+            local t = math.min(1, m.elapsed / m.fall)
+            local sy = m.ty - 320
+            local cy = sy + (m.ty - sy) * t
+            local sz = 64
+            f:SetSize(sz, sz)
+            f:SetPoint("TOPLEFT", arenaFrame, "TOPLEFT", ArenaToFrame(m.tx - sz/2, cy - sz/2))
+            f.bg:Show()
+            WS.SetAnimFrame(f.bg, "proj_meteor", 0)
+            f.bg:SetVertexColor(1, 1, 1, 1)
+            -- target ring on the ground
+            f.ring:SetVertexColor(1.0, 0.38, 0.08, 0.3 * (1 - t) + 0.15)
+            f.ring:SetSize(m.radius*2, m.radius*2)
+            f.ring:SetPoint("CENTER", arenaFrame, "TOPLEFT", m.tx, -m.ty)
+        else
+            -- impact: hide the meteor sprite (don't stretch it -- that caused a
+            -- big one-frame flash). The shockwave + death burst are spawned by the
+            -- sim in Game.lua; here we just fade the soft glow ring out smoothly.
+            f.bg:Hide()
+            local a = math.max(0, (m.fadeOut or 0) / 0.5) * 0.6
+            local grow = m.radius * (2.0 + (1 - (m.fadeOut or 0) / 0.5) * 0.8)
+            f:SetSize(grow, grow)
+            f:SetPoint("CENTER", arenaFrame, "TOPLEFT", m.tx, -m.ty)
+            f.ring:SetVertexColor(1, 0.45, 0.12, a)
+            f.ring:SetSize(grow, grow)
+            f.ring:SetPoint("CENTER", f, "CENTER")
+        end
+    end
+end
+
+-- Arc segments (void tendril / boss lightning). Each arc is a polyline drawn as
+-- a chain of rotated glow-line textures between its points.
+local function ReleaseArcFrame(f)
+    for _, seg in ipairs(f.segs) do seg:Hide() end
+    f:Hide()
+    arcPool[#arcPool+1] = f
+end
+local function AcquireArcFrame()
+    local f = arcPool[#arcPool]
+    if f then arcPool[#arcPool] = nil; f:Show(); return f end
+    f = CreateFrame("Frame", nil, arenaFrame)
+    f:SetFrameLevel(arenaFrame:GetFrameLevel() + 7)
+    f.segs = {}
+    return f
+end
+local function ArcSegment(f, idx)
+    local seg = f.segs[idx]
+    if not seg then
+        seg = f:CreateTexture(nil, "OVERLAY")
+        seg:SetTexture("Interface\\AddOns\\WicksSurvivors\\Art\\glow")
+        seg:SetBlendMode("ADD")
+        f.segs[idx] = seg
+    end
+    seg:Show()
+    return seg
+end
+
+local function RenderArcs(arcs, elapsed)
+    while #activeArcFrames > #arcs do ReleaseArcFrame(table.remove(activeArcFrames)) end
+    while #activeArcFrames < #arcs do activeArcFrames[#activeArcFrames+1] = AcquireArcFrame() end
+    for ai, a in ipairs(arcs) do
+        local f = activeArcFrames[ai]
+        local life = math.max(0, a.life / a.maxLife)
+        local pts = a.points
+        local segIdx = 0
+        -- draw a wriggling line between each consecutive point pair
+        for i = 1, #pts - 3, 2 do
+            local ax, ay = pts[i], pts[i+1]
+            local bx, by = pts[i+2], pts[i+3]
+            local steps = 6
+            local nx, ny = -(by-ay), (bx-ax)
+            local nlen = math.sqrt(nx*nx + ny*ny)
+            if nlen > 0 then nx, ny = nx/nlen, ny/nlen end
+            local amp = 14 * life
+            local prevx, prevy = ax, ay
+            for s = 1, steps do
+                local t = s / steps
+                local wave = math.sin(t*6 + GetTime()*14 + ai) * amp
+                local cx = ax + (bx-ax)*t + nx*wave
+                local cy = ay + (by-ay)*t + ny*wave
+                segIdx = segIdx + 1
+                local seg = ArcSegment(f, segIdx)
+                local mx, my = (prevx+cx)/2, (prevy+cy)/2
+                local len = math.sqrt((cx-prevx)^2 + (cy-prevy)^2)
+                seg:SetSize(len + 6, 7 * life + 2)
+                seg:ClearAllPoints()
+                seg:SetPoint("CENTER", arenaFrame, "TOPLEFT", mx, -my)
+                seg:SetRotation(math.atan2(-(cy-prevy), (cx-prevx)))
+                seg:SetVertexColor(a.r, a.g, a.b, 0.85 * life)
+                prevx, prevy = cx, cy
+            end
+        end
+        -- hide any leftover segments from a previous longer arc
+        for k = segIdx + 1, #f.segs do f.segs[k]:Hide() end
+    end
+end
+
+-- ── Biome background tint ──────────────────────────────────────────────────────
+
+local function EnsureBiomeLayer()
+    if biomeLayer then return end
+    biomeLayer = CreateFrame("Frame", nil, arenaFrame)
+    biomeLayer:SetAllPoints(arenaFrame)
+    -- The arena's opaque bgFrame sits at the base frame level and would draw OVER
+    -- floors placed at the same level (sibling order is creation-based). Raise the
+    -- biome layer one level so floors/props sit above the solid bg. Floors use the
+    -- BACKGROUND draw layer so they still render beneath the dot grid + entities.
+    biomeLayer:SetFrameLevel(arenaFrame:GetFrameLevel() + 1)
+    if biomeLayer.SetClipsChildren then biomeLayer:SetClipsChildren(true) end
+end
+
+-- Lay biome floor tiles + scatter props. Called on each biome change.
+local function BuildBiomeScene(biome)
+    EnsureBiomeLayer()
+
+    -- hide all pooled floor tiles + props first
+    for _, t in ipairs(biomeFloorTex) do t:Hide() end
+    for _, p in ipairs(biomeProps) do p.tex:Hide() end
+    biomeProps = {}
+
+    -- floor tiles: lay a 512px grid, cycling the biome's floor variants
+    local floors = biome.floors
+    if floors and #floors > 0 then
+        local TILE = 256
+        local cols = math.ceil(WS.ARENA_W / TILE)
+        local rows = math.ceil(WS.ARENA_H / TILE)
+        local idx = 0
+        for cx = 0, cols - 1 do
+            for cy = 0, rows - 1 do
+                idx = idx + 1
+                local t = biomeFloorTex[idx]
+                if not t then
+                    t = biomeLayer:CreateTexture(nil, "BACKGROUND")
+                    t:SetDrawLayer("BACKGROUND", 1)
+                    biomeFloorTex[idx] = t
+                end
+                t:SetTexture(WS.TEX[floors[((cx + cy) % #floors) + 1]])
+                t:SetSize(TILE, TILE)
+                t:SetPoint("TOPLEFT", arenaFrame, "TOPLEFT", cx * TILE, -(cy * TILE))
+                t:SetVertexColor(1, 1, 1, 0.85)
+                t:Show()
+            end
+        end
+    end
+
+    -- scatter props at deterministic-ish random spots inside the arena
+    if biome.props then
+        for i, prop in ipairs(biome.props) do
+            local tex = biomeLayer:CreateTexture(nil, "ARTWORK")
+            tex:SetDrawLayer("ARTWORK", prop.floor and 0 or 2)
+            tex:SetTexture(WS.TEX[prop.key])
+            local sz = prop.floor and math.random(140, 220) or math.random(56, 96)
+            tex:SetSize(sz, sz)
+            local px = math.random(60, WS.ARENA_W - 60)
+            local py = math.random(70, WS.ARENA_H - 60)
+            tex:SetPoint("CENTER", arenaFrame, "TOPLEFT", px, -py)
+            tex:SetVertexColor(1, 1, 1, prop.floor and 0.55 or 0.9)
+            tex:Show()
+            local animKey = WS.ANIM[prop.key] and prop.key or nil
+            biomeProps[#biomeProps + 1] = {tex = tex, animKey = animKey, phase = math.random()}
+        end
+    end
+end
+
+function UI.OnBiome(biome)
+    if not biome then return end
+    if arenaBgTex and biome.bg then
+        arenaBgTex:SetColorTexture(biome.bg[1], biome.bg[2], biome.bg[3], 1)
+    end
+    local g = biome.grid
+    if g then
+        if arenaFloorGlow then
+            arenaFloorGlow:SetVertexColor(g[1]*0.5, g[2]*0.5, g[3]*0.5, 0.45)
+        end
+        if arenaDots then
+            for _, dot in ipairs(arenaDots) do
+                dot:SetColorTexture(g[1], g[2], g[3], 0.14)
+            end
+        end
+    end
+    BuildBiomeScene(biome)
 end
 
 -- ── Level-up panel ────────────────────────────────────────────────────────────
@@ -1242,6 +1560,16 @@ local function BuildLevelUp()
         btn.typeLabel = MakeText(btn, 9, C.arc, "CENTER")
         btn.typeLabel:SetPoint("BOTTOM", btn, "BOTTOM", 0, 8)
 
+        -- rank pips row (stacking-rank model) — small bars above the type label
+        btn.pips = {}
+        for p = 1, 6 do
+            local pip = btn:CreateTexture(nil, "OVERLAY")
+            pip:SetSize(12, 3)
+            pip:SetPoint("BOTTOM", btn, "BOTTOM", (p - 3.5) * 14, 19)
+            pip:Hide()
+            btn.pips[p] = pip
+        end
+
         btn:SetScript("OnEnter", function(self)
             bbg:SetColorTexture(C.purple.r * 0.4, C.purple.g * 0.4, C.purple.b * 0.4, 0.55)
             bborder:SetColorTexture(C.fel.r, C.fel.g, C.fel.b, 0.8)
@@ -1266,89 +1594,47 @@ function UI.ShowLevelUp()
     UI.TriggerLevelFlash()
 
     local gs = WS.Game.gs
-
-    local function Shuffle(t)
-        for i = #t, 2, -1 do local j = math.random(i); t[i], t[j] = t[j], t[i] end
-    end
-
-    -- build weapon pool: unowned weapons + upgrades for owned weapons (max lv5)
-    local weaponPool = {}
-    for _, tmpl in ipairs(WS.WEAPONS) do
-        local hasIt, lvl = false, 0
-        for _, w in ipairs(gs.weapons) do
-            if w.template.id == tmpl.id then hasIt = true; lvl = w.level; break end
-        end
-        if not hasIt or lvl < 5 then
-            weaponPool[#weaponPool + 1] = {
-                id=tmpl.id, name=tmpl.name..(hasIt and (" Lv"..(lvl+1)) or ""),
-                desc=tmpl.desc, icon=tmpl.icon, passive=false,
-                baseDmg=tmpl.baseDmg, cooldown=tmpl.cooldown,
-                projSpeed=tmpl.projSpeed, pierce=tmpl.pierce,
-                aoe=tmpl.aoe, range=tmpl.range,
-            }
-        end
-    end
-
-    -- build passive pool: exclude already-taken passives (except regen/hp which stack)
-    local takenPassives = {}
-    for _, id in ipairs(gs.passives or {}) do
-        if id ~= "regen" and id ~= "hp" then
-            takenPassives[id] = true
-        end
-    end
-    local passivePool = {}
-    for _, p in ipairs(WS.PASSIVES) do
-        if not takenPassives[p.id] then
-            passivePool[#passivePool + 1] = {
-                id=p.id, name=p.name, desc=p.desc, icon=p.icon, passive=true, effect=p.effect,
-            }
-        end
-    end
-    -- if all passives taken, re-allow stackable ones
-    if #passivePool == 0 then
-        for _, p in ipairs(WS.PASSIVES) do
-            passivePool[#passivePool + 1] = {
-                id=p.id, name=p.name, desc=p.desc, icon=p.icon, passive=true, effect=p.effect,
-            }
-        end
-    end
-
-    Shuffle(weaponPool)
-    Shuffle(passivePool)
-
-    -- pick 3: guarantee at least 1 passive and at most 2 weapons
-    local choices = {}
-    local maxWeapons = math.min(2, #weaponPool)
-    for i = 1, maxWeapons do
-        choices[#choices + 1] = weaponPool[i]
-    end
-    -- fill rest with passives
-    local pi = 1
-    while #choices < 3 and passivePool[pi] do
-        choices[#choices + 1] = passivePool[pi]
-        pi = pi + 1
-    end
-    -- last resort: duplicate a passive if somehow still short
-    while #choices < 3 do
-        choices[#choices + 1] = passivePool[math.random(#passivePool)]
-    end
-
-    -- shuffle final 3 so passive isn't always slot 3
-    Shuffle(choices)
+    -- stacking-rank choices (respects per-id maxRank) come from the sim layer
+    local choices = WS.Game.RollChoices()
 
     for i = 1, 3 do
         local btn = choiceButtons[i]
         local ch  = choices[i]
         btn.choice = ch
-        btn.iconTex:SetTexture(ch.icon and WS.TEX[ch.icon] or "Interface\\Icons\\INV_Misc_QuestionMark")
-        btn.nameLabel:SetText(ch.name)
-        btn.descLabel:SetText(ch.desc)
-        if ch.passive then
-            btn.typeLabel:SetText("Passive")
-            btn.typeLabel:SetTextColor(C.arc.r, C.arc.g, C.arc.b)
+        if not ch then
+            btn:Hide()
         else
-            btn.typeLabel:SetText("Weapon")
-            btn.typeLabel:SetTextColor(C.ember.r, C.ember.g, C.ember.b)
+            btn:Show()
+            local data    = ch.data
+            local isWeapon = ch.kind == "weapon"
+            local cur      = gs.ranks[data.id] or 0
+            local maxRank  = data.maxRank or 3
+            local nextRank = math.min(cur + 1, maxRank)
+            local accent   = isWeapon and C.ember or C.arc
+
+            btn.iconTex:SetTexture(data.icon and WS.TEX[data.icon] or "Interface\\Icons\\INV_Misc_QuestionMark")
+            btn.nameLabel:SetText(data.name)
+            btn.descLabel:SetText(data.desc)
+            btn.typeLabel:SetText(string.format("%s  Rank %d/%d",
+                isWeapon and "WEAPON" or "PASSIVE", nextRank, maxRank))
+            btn.typeLabel:SetTextColor(accent.r, accent.g, accent.b)
+
+            -- rank pips: filled = owned, next = half-lit fel, rest = dim purple
+            for p = 1, 6 do
+                local pip = btn.pips[p]
+                if p > maxRank then
+                    pip:Hide()
+                else
+                    pip:Show()
+                    if p <= cur then
+                        pip:SetColorTexture(accent.r, accent.g, accent.b, 1)
+                    elseif p == cur + 1 then
+                        pip:SetColorTexture(C.fel.r, C.fel.g, C.fel.b, 0.55)
+                    else
+                        pip:SetColorTexture(C.purple.r, C.purple.g, C.purple.b, 0.4)
+                    end
+                end
+            end
         end
     end
     levelUpFrame:Show()
@@ -1421,6 +1707,10 @@ function UI.ShowGameOver(finalGs)
     for i = #activeEnemyFrames,  1, -1 do ReleaseFrame(enemyPool,  table.remove(activeEnemyFrames))  end
     for i = #activeProjFrames,   1, -1 do ReleaseFrame(projPool,   table.remove(activeProjFrames))   end
     for i = #activePickupFrames, 1, -1 do ReleaseFrame(pickupPool, table.remove(activePickupFrames)) end
+    for i = #activeScytheFrames, 1, -1 do local f=table.remove(activeScytheFrames); f:Hide(); scythePool[#scythePool+1]=f end
+    for i = #activeWolfFrames,   1, -1 do local f=table.remove(activeWolfFrames);   f:Hide(); wolfPool[#wolfPool+1]=f end
+    for i = #activeMeteorFrames, 1, -1 do local f=table.remove(activeMeteorFrames); f:Hide(); meteorPool[#meteorPool+1]=f end
+    for i = #activeArcFrames,    1, -1 do ReleaseArcFrame(table.remove(activeArcFrames)) end
     for i = #particles,  1, -1 do ReleaseParticle(particles[i]);          table.remove(particles, i)  end
     for i = #rings,      1, -1 do rings[i]:Hide(); ringPool[#ringPool+1]=rings[i]; table.remove(rings,i) end
     for i = #dmgNumbers, 1, -1 do dmgNumbers[i].fs:Hide(); dmgNumberPool[#dmgNumberPool+1]=dmgNumbers[i]; table.remove(dmgNumbers,i) end
@@ -1570,7 +1860,16 @@ function UI.Render(gs, elapsed)
     end
     if not hasAura and auraRingFrame then auraRingFrame:Hide() end
 
+    -- animate biome props (flicker strips)
+    for _, p in ipairs(biomeProps) do
+        if p.animKey then WS.SetAnimFrame(p.tex, p.animKey, p.phase) end
+    end
+
     RenderEnemies(gs.enemies, elapsed)
     RenderProjectiles(gs.projectiles)
     RenderPickups(gs.pickups, elapsed)
+    RenderScythes(gs.scythes or {}, elapsed)
+    RenderWolves(gs.wolves or {}, elapsed)
+    RenderMeteors(gs.meteors or {}, elapsed)
+    RenderArcs(gs.arcs or {}, elapsed)
 end
