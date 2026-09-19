@@ -331,17 +331,27 @@ frame:SetScript("OnEvent", function(self, event, arg1)
             cmd = cmd and cmd:lower() or ""
 
             if cmd == "announce" then
-                if SitStandOrDescendStart then
-                    local standState = UnitStandState and UnitStandState("player")
-                    if standState ~= 2 and standState ~= 3 then
-                        SitStandOrDescendStart()
-                    end
-                elseif DoEmote then
-                    DoEmote("SIT")
-                end
+                -- Sitting and emoting are both restricted for addons on a
+                -- client with the Midnight rules (Forever), where trying
+                -- either pops the blocked-action dialog. There the command
+                -- just opens the game and says so in your own chat frame.
+                local restricted = C_Secrets and C_Secrets.HasSecretRestrictions
+                    and C_Secrets.HasSecretRestrictions()
 
-                if SendChatMessage then
-                    SendChatMessage("sits down and starts a game of Wick's Survivors", "EMOTE")
+                if not restricted then
+                    if SitStandOrDescendStart then
+                        local standState = UnitStandState and UnitStandState("player")
+                        if standState ~= 2 and standState ~= 3 then
+                            SitStandOrDescendStart()
+                        end
+                    elseif DoEmote then
+                        DoEmote("SIT")
+                    end
+                    if SendChatMessage then
+                        SendChatMessage("sits down and starts a game of Wick's Survivors", "EMOTE")
+                    end
+                elseif DEFAULT_CHAT_FRAME then
+                    DEFAULT_CHAT_FRAME:AddMessage("Wick's Survivors: this client does not let addons emote for you. Sit and say hello yourself.")
                 end
 
                 local function openSurvivors()
