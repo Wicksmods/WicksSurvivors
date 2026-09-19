@@ -1,3 +1,5 @@
 # build artifacts
 Art/anim_manifest.json
 *.zip
+.wick-fb-announced-*
+.wick-discord-announced-*
