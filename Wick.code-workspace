@@ -8,7 +8,12 @@
 		},
 		{
 			"path": "../../../../../../Users/jspli/Projects/WicksSurvivors"
+		},
+		{
+			"path": "../../../../../../Users/jspli/OneDrive/Documents/wicks-survivors-full"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"godotTools.editorPath.godot4": "c:\\Users\\jspli\\OneDrive\\Desktop\\Godot_v4.6.3-stable_win64_console.exe"
+	}
 }

@@ -57,6 +57,40 @@ local function MakeText(parent, size, col, justify, useFriz)
     return f
 end
 
+local function RestoreFramePosition(frame, dbKey)
+    if WS.db and WS.db[dbKey] then
+        local pos = WS.db[dbKey]
+        frame:ClearAllPoints()
+        frame:SetPoint("CENTER", UIParent, "CENTER", pos.x or 0, pos.y or 0)
+    end
+end
+
+local function SaveFramePosition(frame, dbKey)
+    if not WS.db then return end
+    local x, y = frame:GetCenter()
+    local ux, uy = UIParent:GetCenter()
+    if not x or not y or not ux or not uy then return end
+    WS.db[dbKey] = { x = x - ux, y = y - uy }
+end
+
+local function MakeDraggable(frame, dragHandle, dbKey, onStop, onMove)
+    RestoreFramePosition(frame, dbKey)
+    frame:SetMovable(true)
+    if frame.SetClampedToScreen then frame:SetClampedToScreen(true) end
+    dragHandle:EnableMouse(true)
+    dragHandle:RegisterForDrag("LeftButton")
+    dragHandle:SetScript("OnDragStart", function()
+        frame:StartMoving()
+        if onMove then dragHandle:SetScript("OnUpdate", onMove) end
+    end)
+    dragHandle:SetScript("OnDragStop", function()
+        frame:StopMovingOrSizing()
+        dragHandle:SetScript("OnUpdate", nil)
+        SaveFramePosition(frame, dbKey)
+        if onStop then onStop() end
+    end)
+end
+
 local function AddCornerAccents(frame)
     local arm, thick = 10, 2
     local corners = {
@@ -574,6 +608,7 @@ local function BuildMenu()
     local title = MakeText(header, 18, C.text, "CENTER")
     title:SetPoint("CENTER")
     title:SetText("Wick's Survivors")
+    MakeDraggable(menuFrame, header, "menuPos")
 
     -- orb icon in the panel body
     local orbFrame = CreateFrame("Frame", nil, menuFrame)
@@ -698,6 +733,12 @@ function UI.ToggleMenu()
     end
 end
 
+function UI.OpenMenu()
+    BuildMenu()
+    if menuFrame:IsShown() then return end
+    UI.ToggleMenu()
+end
+
 function UI.CloseMenu()
     if menuFrame and menuFrame:IsShown() then
         menuFrame:Hide()
@@ -707,6 +748,7 @@ end
 
 -- ── HUD ──────────────────────────────────────────────────────────────────────
 
+local arenaFrame
 local hudFrame
 local hpBar, hpBarFill, xpBar, xpBarFill
 local hudScore, hudWave, hudTime, hudLevel
@@ -714,6 +756,23 @@ local waveAlert
 local auraRingFrame
 local scorePopup, scorePopupTimer = nil, 0
 local lastScore = 0
+
+local function SyncHudToArena(useCurrent)
+    if not arenaFrame or not hudFrame then return end
+    hudFrame:ClearAllPoints()
+    if not useCurrent and WS.db and WS.db.arenaPos then
+        local pos = WS.db.arenaPos
+        hudFrame:SetPoint("CENTER", UIParent, "CENTER", pos.x or 0, pos.y or 0)
+    else
+        local x, y = arenaFrame:GetCenter()
+        local ux, uy = UIParent:GetCenter()
+        if x and y and ux and uy then
+            hudFrame:SetPoint("CENTER", UIParent, "CENTER", x - ux, y - uy)
+        else
+            hudFrame:SetPoint("CENTER")
+        end
+    end
+end
 
 local function BuildHUD(parent)
     if hudFrame then return end
@@ -732,6 +791,8 @@ local function BuildHUD(parent)
     topStrip:SetSize(WS.ARENA_W, 32)
     topStrip:SetPoint("TOPLEFT", hudFrame, "TOPLEFT", 0, 0)
     WS.Skin.Header(topStrip)
+    MakeDraggable(arenaFrame, topStrip, "arenaPos", SyncHudToArena, function() SyncHudToArena(true) end)
+    SyncHudToArena()
 
     local exitBtn = CreateFrame("Button", nil, topStrip)
     exitBtn:SetSize(28, 28)
@@ -876,7 +937,6 @@ end
 
 -- ── Arena ─────────────────────────────────────────────────────────────────────
 
-local arenaFrame
 local playerDot
 local playerTex
 local playerGlow

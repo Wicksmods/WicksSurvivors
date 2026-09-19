@@ -305,6 +305,8 @@ WS.defaultDB = {
     optSound          = true,
     optSplash         = true,
     optInputMode      = 1,  -- 1 = mouse-move (matches addon's original behavior)
+    menuPos           = nil,
+    arenaPos          = nil,
 }
 
 local frame = CreateFrame("Frame")
@@ -325,6 +327,39 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 
         SLASH_WICKSSURVIVORS1 = "/survivors"
         SlashCmdList["WICKSSURVIVORS"] = function(msg)
+            local cmd = (msg or ""):match("^%s*(.-)%s*$")
+            cmd = cmd and cmd:lower() or ""
+
+            if cmd == "announce" then
+                if SitStandOrDescendStart then
+                    local standState = UnitStandState and UnitStandState("player")
+                    if standState ~= 2 and standState ~= 3 then
+                        SitStandOrDescendStart()
+                    end
+                elseif DoEmote then
+                    DoEmote("SIT")
+                end
+
+                if SendChatMessage then
+                    SendChatMessage("sits down and starts a game of Wick's Survivors", "EMOTE")
+                end
+
+                local function openSurvivors()
+                    if WS.UI.OpenMenu then
+                        WS.UI.OpenMenu()
+                    else
+                        WS.UI.ToggleMenu()
+                    end
+                end
+
+                if C_Timer and C_Timer.After then
+                    C_Timer.After(0.35, openSurvivors)
+                else
+                    openSurvivors()
+                end
+                return
+            end
+
             -- hidden dev: "/survivors wave N" starts a run directly on wave N.
             -- Not user-documented; for testing late waves/bosses/biomes.
             local n = msg and msg:match("^%s*wave%s+(%d+)%s*$")

@@ -1,5 +1,17 @@
 # Wick's Survivors -- Changelog
 
+## 0.4.0 -- 2026-09-19
+
+### Added
+
+- Runs on World of Warcraft: Forever as well as TBC Anniversary, from the
+  same package. The minigame draws its own frames and barely touches the
+  game's API, so none of Forever's new addon restrictions apply to it.
+- The menu and the arena can be dragged where you want them, and each
+  remembers where you left it.
+- `/survivors announce` sits your character, emotes that you are starting a
+  game, and opens the menu, for when you want company.
+
 ## 0.3.0 -- 2026-05-31
 
 Brings the addon to parity with the standalone Wick's Survivors desktop build.
