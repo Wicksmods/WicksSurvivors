@@ -910,8 +910,10 @@ function UI.OnWave(wave)
     if wave == 1 then
         waveAlert.sub:SetText("Survive!")
     elseif wave % WS.BOSS_EVERY == 0 then
-        local bossIdx = ((wave / WS.BOSS_EVERY - 1) % #WS.BOSS_TYPES) + 1
-        local bossName = WS.BOSS_TYPES[bossIdx] and WS.BOSS_TYPES[bossIdx].name or "???"
+        -- Ask the same question the spawner asks, so the banner cannot name
+        -- one boss while the arena sends another.
+        local boss = WS.BossForWave(wave)
+        local bossName = boss and boss.name or "???"
         waveAlert.sub:SetText("BOSS: " .. bossName)
         waveAlert.text:SetTextColor(WS.C.red.r, WS.C.red.g, WS.C.red.b, 1)
     else

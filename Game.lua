@@ -692,10 +692,9 @@ function G.Quit()
 end
 
 local function UpdateBiome()
-    local idx = math.floor((gs.wave - 1) / WS.WAVES_PER_BIOME) % #WS.BIOMES
-    if idx ~= gs.biomeIdx then
+    local biome, idx = WS.BiomeForWave(gs.wave)
+    if biome and idx ~= gs.biomeIdx then
         gs.biomeIdx = idx
-        local biome = WS.BIOMES[idx + 1]
         WS.UI.OnBiome(biome)
     end
 end

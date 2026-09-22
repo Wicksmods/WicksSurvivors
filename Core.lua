@@ -198,6 +198,26 @@ WS.BOSS_TYPES = {
 }
 WS.BOSS_EMPOWER_PCT = 0.4   -- below 40% HP the boss swaps to its empowered sprite
 
+-- Which biome a wave belongs to, and therefore which boss it ends with.
+--
+-- This lived in two places and they did not agree. Game.lua walked the
+-- biome list; the wave banner did its own arithmetic and indexed
+-- BOSS_TYPES by number, which cannot work, because BOSS_TYPES is keyed by
+-- name. #BOSS_TYPES is 0, so wave 6 divided by zero and the banner threw.
+--
+-- One function, asked by both, so they cannot drift apart again.
+function WS.BiomeForWave(wave)
+    local n = #WS.BIOMES
+    if n == 0 then return nil, 0 end
+    local idx = math.floor(((wave or 1) - 1) / WS.WAVES_PER_BIOME) % n
+    return WS.BIOMES[idx + 1], idx
+end
+
+function WS.BossForWave(wave)
+    local biome = WS.BiomeForWave(wave)
+    return biome and WS.BOSS_TYPES[biome.boss] or nil
+end
+
 -- ── Weapons (mirrors LevelUp.gd WEAPON upgrades + Player.gd firing) ──────────
 -- id           : matches a FIRE handler in Game.lua
 -- maxRank      : stacking cap (from LevelUp.gd MAX_STACKS)
